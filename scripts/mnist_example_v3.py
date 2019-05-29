@@ -94,6 +94,7 @@ def train(device_id=0):
     train_data, test_data, train_label, test_label = get_data(
         style="tensorflow")
 
+    # perform here data augmentation, etc.
     def map_fn(_x, _y):
         return _x, _y
 
@@ -167,7 +168,7 @@ def train(device_id=0):
             elapsed_time = time.time() - training_start_time
             speed = (curr_gt - last_gt) / elapsed_time
             print('Epoch {}, Iteration {}, speed {}, '.format(e, curr_gt, speed)
-                  + ', '.join(list(map(lambda x: '{}: {}'.format(x, measures[x]), measures.keys()))) + '.')
+                  + ', '.join(list(map(lambda x: '{}: {}'.format(x, measures[x]), measures.keys()))))
             measures['iteration'] = int(curr_gt)
             measures['epoch'] = e
             measures['elapsed_time'] = elapsed_time
