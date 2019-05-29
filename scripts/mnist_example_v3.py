@@ -1,13 +1,10 @@
-import sys
+import argparse
+import json
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import time
 
 import numpy as np
 import tensorflow as tf
-# import tensorflow.contrib.slim as slim
-import argparse
-import time
-import json
 from tqdm import tqdm
 
 
@@ -142,7 +139,7 @@ def train(device_id=0):
             # Start train iterator
             sess.run(train_iterator, feed_dict={placeholder_data: train_data, placeholder_label: train_label})
             try:
-                with tqdm(total=train_data.shape[0]//batchsize, leave=False) as pbar:
+                with tqdm(total=train_data.shape[0] // batchsize, leave=False) as pbar:
                     while True:
                         _, main_loss, acc, curr_gt = sess.run([train_step, loss, accuracy, global_step],
                                                               feed_dict={learning_rate: float_lr})

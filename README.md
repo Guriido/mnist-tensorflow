@@ -11,9 +11,7 @@ In mnist example version v1~, I tried to produce a parameterizable and yet pract
 ## Versions
 
 ### V0
-official "cleaned" is a version self contained of the official mnist example of Tensorflow.
-I do not recommend to use or read this.
-terasaki version is a simple example written by a coworker that I based my examples on.
+This is a simple example written by a coworker that I based my examples on.
 
 ### V1
 adds 

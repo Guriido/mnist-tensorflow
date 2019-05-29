@@ -1,12 +1,10 @@
+import argparse
+import json
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import time
 
 import numpy as np
 import tensorflow as tf
-# import tensorflow.contrib.slim as slim
-import argparse
-import time
-import json
 
 
 def get_data(style="tensorflow"):
