@@ -6,6 +6,7 @@ import time
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
+import operator
 
 
 def get_data(style="tensorflow"):
@@ -22,6 +23,57 @@ def get_data(style="tensorflow"):
         raise Exception(
             "Invalid style = {}. choice chainer or tensorflow".format(style))
     return train_data, test_data, train_label, test_label
+
+
+class Printer(object):
+
+    def __init__(self, ordered_keys):
+        self.ordered_keys = ordered_keys
+        self.sizes = [max(10, len(key)) for key in self.ordered_keys]
+
+    def print_header(self):
+        header = ""
+        for key, size in zip(self.ordered_keys, self.sizes):
+            header = header + ('{:<%d}' % size).format(key) + "  "
+        print(header)
+
+    def print_line(self, measures):
+        line = ""
+        for key, size in zip(self.ordered_keys, self.sizes):
+            line = line + ('{:<%dg}' % size).format(measures[key]) + "  "
+        print(line)
+
+
+class BestModelSaver(object):
+
+    def __init__(self, result_folder, op='lt'):
+        """
+        :param result_folder (str) path to result folder
+        :param op: (str) gt for accuracy, etc, or lt for loss etc.
+        """
+        self._saver = tf.train.Saver(max_to_keep=None, save_relative_paths=True)
+        self._save_path = os.path.join(result_folder, 'best_model.ckpt')
+        self._operator = getattr(operator, op)
+        self._best_value = float('inf') if op == 'lt' else float('-inf')
+
+    def __call__(self, measure, session):
+        if self._operator(measure, self._best_value):
+            self._best_value = measure
+            self._saver.save(session, self._save_path)
+
+
+class Logger(object):
+
+    def __init__(self, result_folder='result', name='log'):
+        self._log = []
+        self._save_path = os.path.join(result_folder, name)
+
+    def add_entry(self, measures):
+        self._log.append(measures)
+
+    def write_in_file(self):
+        with open(self._save_path, 'w') as file:
+            json.dump(self._log, file, indent=4)
 
 
 class SimpleCNN(tf.keras.models.Model):
@@ -86,15 +138,17 @@ def train(device_id=0):
     # parameters
     epochs = 10
     batchsize = 32
-    log_list = []
-    last_gt = 0
+    result_folder = 'results'
+    logger = Logger(result_folder=result_folder)
     float_lr = 0.01
+    printer = Printer(['epoch', 'main/loss', 'main/valid/loss', 'main/accuracy', 'main/valid/accuracy', 'elapsed_time'])
 
     # data preparation
     train_data, test_data, train_label, test_label = get_data(
         style="tensorflow")
 
     # perform here data augmentation, etc.
+    # if operations are done on numpy arrays, you may need to wrap it with tf.py_func()
     def map_fn(_x, _y):
         return _x, _y
 
@@ -114,10 +168,12 @@ def train(device_id=0):
     data_y = tf.cast(data_y, tf.int32)
 
     global_step = tf.Variable(0, trainable=False)
-    y_ = tf.one_hot(data_y, 10)
+    training_flag = tf.Variable(False, trainable=False)
     learning_rate = tf.Variable(0.001, trainable=False)
+    y_ = tf.one_hot(data_y, 10)
+
     model = SimpleCNN()
-    y = model(data_x, training=True)
+    y = model(data_x, training=training_flag)
     loss = tf.losses.softmax_cross_entropy(y_, y)
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
     train_step = optimizer.minimize(loss, global_step=global_step)
@@ -127,11 +183,12 @@ def train(device_id=0):
     train_iterator = iterator.make_initializer(train_dataset)
     val_iterator = iterator.make_initializer(val_dataset)
 
-    saver = tf.train.Saver(max_to_keep=1)
+    bestmodel_saver = BestModelSaver(result_folder)
     config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         training_start_time = time.time()
+        printer.print_header()
         for e in range(epochs):
 
             metrics_to_log = {'main/accuracy': [], 'main/loss': [],
@@ -143,7 +200,8 @@ def train(device_id=0):
                 with tqdm(total=train_data.shape[0] // batchsize, leave=False) as pbar:
                     while True:
                         _, main_loss, acc, curr_gt = sess.run([train_step, loss, accuracy, global_step],
-                                                              feed_dict={learning_rate: float_lr})
+                                                              feed_dict={learning_rate: float_lr,
+                                                                         training_flag: True})
                         metrics_to_log['main/loss'].append(main_loss)
                         metrics_to_log['main/accuracy'].append(acc)
                         pbar.update(1)
@@ -161,23 +219,18 @@ def train(device_id=0):
                 pass
 
             # update learning rate with any function
-            float_lr = float_lr / 1.5
+            float_lr = float_lr * 0.99
 
             # update statistics, display and save log
             measures = {key: float(np.mean(metrics_to_log[key])) for key in metrics_to_log.keys()}
             elapsed_time = time.time() - training_start_time
-            speed = (curr_gt - last_gt) / elapsed_time
-            print('Epoch {}, Iteration {}, speed {}, '.format(e, curr_gt, speed)
-                  + ', '.join(list(map(lambda x: '{}: {}'.format(x, measures[x]), measures.keys()))))
             measures['iteration'] = int(curr_gt)
             measures['epoch'] = e
             measures['elapsed_time'] = elapsed_time
-            log_list.append(measures)
-            with open('log', 'w') as file:
-                json.dump(log_list, file, indent=4)
-
-        # save variables of the graph after training
-        saver.save(sess, 'checkpoint/mnist.ckpt')
+            bestmodel_saver(measures['main/valid/loss'], sess)
+            printer.print_line(measures)
+            logger.add_entry(measures)
+            logger.write_in_file()
 
 
 def predict(device_id=0):

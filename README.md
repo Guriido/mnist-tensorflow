@@ -29,6 +29,12 @@ adds
 - evaluation on validation dataset each epoch
 - pretty print of epoch progress with tqdm
 
+#### V3.1
+adds
+- pretty print of epoch statistics
+- save (and update) best model during training, instead of model after training
+
+
 
 ## Environment
 This was tested on tensorflow 1.9 with python 3.6 on this docker image: 
