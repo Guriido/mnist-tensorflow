@@ -2,6 +2,7 @@ import argparse
 import os
 
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 
 
 def get_data(style="tensorflow"):
@@ -20,52 +21,23 @@ def get_data(style="tensorflow"):
     return train_data, test_data, train_label, test_label
 
 
-class SimpleCNN(tf.keras.models.Model):
+def simple_cnn(input_tensor, kernel_size=5, filter_sizes=(20, 50)):
+    filters1, filters2 = filter_sizes
 
-    def __init__(self, kernel_size=5, filter_sizes=(20, 50), data_format=None):
-        super(SimpleCNN, self).__init__()
-        filters1, filters2 = filter_sizes
+    h = slim.conv2d(input_tensor, num_outputs=filters1, kernel_size=kernel_size, stride=1)
+    h = slim.batch_norm(h, decay=0.9)
+    h = tf.nn.relu(h)
+    h = slim.max_pool2d(h, kernel_size=(2, 2), stride=2, padding='same')
+    h = slim.conv2d(h, num_outputs=filters2, kernel_size=kernel_size, stride=1)
+    h = slim.batch_norm(h, decay=0.9)
+    h = tf.nn.relu(h)
+    h = slim.max_pool2d(h, kernel_size=(2, 2), stride=2, padding='same')
 
-        if data_format is None or data_format == 'channels_last':
-            self.c_axis = -1
-        else:
-            self.c_axis = 1
+    h = slim.flatten(h)
+    h = slim.linear(h, 500)
+    h = slim.linear(h, 10)
 
-        self.conv2a = tf.keras.layers.Conv2D(filters1, kernel_size=kernel_size, strides=1, padding='same',
-                                             data_format=data_format)
-        self.bn2a = tf.keras.layers.BatchNormalization(axis=self.c_axis)
-        self.mp1 = tf.keras.layers.MaxPool2D((2, 2), data_format=data_format)
-
-        self.conv2b = tf.keras.layers.Conv2D(filters2, kernel_size=kernel_size, padding='same', data_format=data_format)
-        self.bn2b = tf.keras.layers.BatchNormalization(axis=self.c_axis)
-        self.mp2 = tf.keras.layers.MaxPool2D((2, 2), data_format=data_format)
-
-        self.flat = tf.keras.layers.Flatten()
-
-        self.linear1 = tf.keras.layers.Dense(500)
-        self.linear2 = tf.keras.layers.Dense(10)
-
-    def call(self, input_tensor, training=False, mask=None, return_feature=False):
-        # h = tf.expand_dims(input_tensor, axis=self.c_axis)
-        h = input_tensor
-        h = self.conv2a(h)
-        h = self.bn2a(h, training=training)
-        h = tf.nn.relu(h)
-        h = self.mp1(h)
-        h = self.conv2b(h)
-        h = self.bn2b(h, training=training)
-        h = tf.nn.relu(h)
-        feature = h
-        h = self.mp2(h)
-
-        h = self.flat(h)
-        h = self.linear1(h)
-        h = self.linear2(h)
-
-        if return_feature:
-            return h, feature
-        else:
-            return h
+    return h
 
 
 def calc_accuracy(y_, y_conv):
@@ -88,11 +60,12 @@ def train(device_id=0):
         y_label = tf.placeholder(tf.int32, shape=[None, ])
 
         y_ = tf.one_hot(y_label, 10)
-        model = SimpleCNN()
-        y = model(x_image, training=True)
+        with slim.arg_scope([slim.batch_norm],
+                            is_training=True):
+            y = simple_cnn(x_image)
         loss = tf.losses.softmax_cross_entropy(y_, y)
         optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.01)
-        train_step = optimizer.minimize(loss)
+        train_step = slim.learning.create_train_op(loss, optimizer)
         accuracy = calc_accuracy(y_, y)
     saver = tf.train.Saver(max_to_keep=1)
     epochs = 10
@@ -127,8 +100,9 @@ def predict(device_id=0):
         x_image = tf.placeholder(tf.float32, shape=[None, 28, 28, 1])
         y_label = tf.placeholder(tf.int32, shape=[None, ])
         y_ = tf.one_hot(y_label, 10)
-        model = SimpleCNN()
-        y = model(x_image)
+        with slim.arg_scope([slim.batch_norm],
+                            is_training=False):
+            y = simple_cnn(x_image)
         accuracy = calc_accuracy(y_, y)
 
     saver = tf.train.Saver()

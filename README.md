@@ -16,7 +16,7 @@ This is a simple example written by a coworker that I based my examples on.
 ### V1
 adds 
 - device selection
-- model as an `tf.keras.models.Model` object
+- slim model has batch normalization compatibility
 
 ### V2
 adds 
@@ -33,7 +33,6 @@ adds
 adds
 - pretty print of epoch statistics
 - save (and update) best model during training, instead of model after training
-
 
 
 ## Environment
