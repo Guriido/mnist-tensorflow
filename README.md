@@ -11,41 +11,53 @@ In mnist example version v1~, I tried to produce a parameterizable and yet pract
 ## Versions
 
 ### V0
+
 This is a simple example written by a coworker that I based my examples on.
 
 ### V1
-adds 
+
+adds
+
 - device selection
 - slim model has batch normalization compatibility
 
 ### V2
-adds 
+
+adds
+
 - simple logging tool (inspired by Chainer)
 - parameterizable lr descent
 
 ### V3
+
 adds
+
 - clean use of `tf.data.Dataset` and iterator
 - evaluation on validation dataset each epoch
 - pretty print of epoch progress with tqdm
 
 #### V3.1
+
 adds
+
 - pretty print of epoch statistics
 - save (and update) best model during training, instead of model after training
 
-
 ## Environment
-This was tested on tensorflow 1.9 with python 3.6 on this docker image: 
-https://cloud.docker.com/u/guriido/repository/docker/guriido/tf
 
-## Useful references:
+This was tested on tensorflow 1.9 with python 3.6 on this docker image:
+<https://cloud.docker.com/u/guriido/repository/docker/guriido/tf>
 
-#### On dataset creation and options
-https://www.tensorflow.org/guide/performance/datasets
+## Useful references
 
-#### On datasets use with sessions
-https://medium.com/ymedialabs-innovation/how-to-use-dataset-and-iterators-in-tensorflow-with-code-samples-3bb98b6b74ab
+### On dataset creation and options
 
-#### advanced tutorial
-https://www.tensorflow.org/alpha/tutorials/eager
+<https://www.tensorflow.org/guide/performance/datasets>
+
+### On datasets use with sessions
+
+<https://medium.com/ymedialabs-innovation/how-to-use-dataset-and-iterators-in-tensorflow-with-code-samples-3bb98b6b74ab>
+
+### advanced tutorial
+
+<https://www.tensorflow.org/alpha/tutorials/eager>
